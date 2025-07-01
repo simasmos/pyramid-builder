@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3 uid="uid://chqxj6nrmdvb5"]
+
+[ext_resource type="Script" path="res://scripts/GameBoard.gd" id="1_8v2l3"]
+[ext_resource type="Script" path="res://scripts/GridOverlay.gd" id="2_grid"]
+[ext_resource type="Script" path="res://scripts/HighlightOverlay.gd" id="3_highlight"]
+
+[node name="GameBoard" type="Node2D"]
+script = ExtResource("1_8v2l3")
+
+[node name="TileContainer" type="Node2D" parent="."]
+
+[node name="WorkerContainer" type="Node2D" parent="."]
+
+[node name="HighlightOverlay" type="Node2D" parent="."]
+script = ExtResource("3_highlight")
+
+[node name="GridOverlay" type="Node2D" parent="."]
+script = ExtResource("2_grid")
