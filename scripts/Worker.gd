@@ -71,12 +71,20 @@ func can_move_to(target_position: Vector2i) -> bool:
 func move_to(target_position: Vector2i) -> bool:
 	if can_move_to(target_position):
 		grid_position = target_position
-		_update_position()
+		_animate_movement_to(target_position)
 		action_points -= 1
 		worker_moved.emit(self, target_position)
 		action_performed.emit(self, "move")
 		return true
 	return false
+
+func _animate_movement_to(target_grid_pos: Vector2i):
+	var target_world_pos = Vector2(target_grid_pos.x * TILE_SIZE + TILE_SIZE/2, target_grid_pos.y * TILE_SIZE + TILE_SIZE/2)
+	
+	var tween = create_tween()
+	tween.set_ease(Tween.EASE_OUT)
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.tween_property(self, "position", target_world_pos, 0.3)
 
 func can_quarry() -> bool:
 	return action_points > 0 and carried_stones < max_stones
