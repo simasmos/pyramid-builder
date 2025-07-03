@@ -80,6 +80,7 @@ enum TerrainType {
 
 ### Git Status
 - Repository: `pyramid-builder`
-- Last feature: Worker movement animation
-- Branch structure: Feature branches with PRs
+- Last feature: Comprehensive testing infrastructure with GdUnit4
+- Branch structure: Feature branches with PRs and automated testing
 - Commit style: Descriptive without Claude attribution
+- CI/CD: Automated testing on every PR with GitHub Actions

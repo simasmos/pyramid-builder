@@ -1,0 +1,67 @@
+# GdUnit4 Configuration File
+# This file configures GdUnit4 test runner behavior
+
+[general]
+# Test discovery settings
+test_root_folder = "test"
+test_file_pattern = "test_*.gd"
+test_timeout = 30000  # 30 seconds per test
+
+# Reporting settings
+report_console = true
+report_junit_xml = true
+report_html = true
+report_coverage = true
+
+# Test execution settings
+verbose = true
+fail_fast = false
+parallel_execution = true
+max_parallel_tests = 4
+
+# Coverage settings
+coverage_enabled = true
+coverage_exclude_patterns = [
+    "test/*",
+    "addons/*",
+    "*.import"
+]
+
+# Performance settings
+memory_monitor = true
+performance_monitor = true
+
+[console]
+# Console output configuration
+colored_output = true
+show_test_time = true
+show_memory_usage = true
+show_orphan_nodes = true
+
+[junit]
+# JUnit XML report configuration
+output_file = "test_results.xml"
+include_skipped = true
+include_stdout = true
+include_stderr = true
+
+[html]
+# HTML report configuration
+output_directory = "test_reports"
+template = "default"
+include_source = true
+
+[coverage]
+# Coverage report configuration
+output_directory = "coverage"
+min_coverage = 80
+exclude_patterns = [
+    "test/*",
+    "addons/*"
+]
+
+[ci]
+# Continuous Integration specific settings
+exit_on_first_failure = false
+disable_colors = false
+quiet_mode = false

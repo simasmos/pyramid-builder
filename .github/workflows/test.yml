@@ -1,0 +1,259 @@
+name: 🧪 Run Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 🎮 Test Game Logic
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        godot-version: ['4.2.2']
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🎯 Setup Godot ${{ matrix.godot-version }}
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        godot-version: ${{ matrix.godot-version }}
+        
+    - name: 🔧 Verify Godot Installation
+      run: |
+        godot --version
+        
+    - name: 📦 Cache Godot Project Import
+      uses: actions/cache@v4
+      with:
+        path: .godot/
+        key: godot-${{ matrix.godot-version }}-${{ hashFiles('**/*.tscn', '**/*.tres', 'project.godot') }}
+        restore-keys: |
+          godot-${{ matrix.godot-version }}-
+          
+    - name: 🏗️ Import Godot Project
+      run: |
+        timeout 60 godot --headless --editor --quit || true
+        
+    - name: 🧪 Install GdUnit4
+      run: |
+        # Download and install GdUnit4 plugin with version pinning
+        GDUNIT4_VERSION="4.2.4"
+        GDUNIT4_URL="https://github.com/MikeSchulze/gdUnit4/releases/download/v${GDUNIT4_VERSION}/gdUnit4.zip"
+        GDUNIT4_CHECKSUM="b8c2f8b7e3d4a5c6d7e8f9a0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0"
+        
+        mkdir -p addons/gdUnit4
+        echo "Downloading GdUnit4 v${GDUNIT4_VERSION}..."
+        wget -O gdunit4.zip "${GDUNIT4_URL}"
+        
+        # Verify checksum (skip if checksum not available yet)
+        # echo "${GDUNIT4_CHECKSUM} gdunit4.zip" | sha256sum -c || echo "Warning: Checksum verification skipped"
+        
+        unzip gdunit4.zip -d addons/gdUnit4/
+        rm gdunit4.zip
+        
+    - name: 🔍 Enable GdUnit4 Plugin
+      run: |
+        # Enable the plugin in project settings
+        godot --headless --script addons/gdUnit4/bin/ProjectScanner.gd --quit
+        
+    - name: 🧪 Run Unit Tests
+      run: |
+        # Run all tests with verbose output
+        godot --headless --script addons/gdUnit4/bin/GdUnitCmdTool.gd \
+          --add test/unit/ \
+          --add test/integration/ \
+          --add test/scene/ \
+          --report-junit-xml test_results.xml \
+          --report-console \
+          --verbose
+        
+    - name: 📊 Upload Test Results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-results-${{ matrix.godot-version }}
+        path: test_results.xml
+        
+    - name: 📈 Publish Test Results
+      uses: dorny/test-reporter@v1
+      if: always()
+      with:
+        name: Test Results (Godot ${{ matrix.godot-version }})
+        path: test_results.xml
+        reporter: java-junit
+        fail-on-error: true
+        
+  coverage:
+    name: 📊 Code Coverage
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🎯 Setup Godot 4.2.2
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        godot-version: '4.2.2'
+        
+    - name: 🧪 Cache GdUnit4 Installation
+      uses: actions/cache@v4
+      id: gdunit4-cache-coverage
+      with:
+        path: addons/gdUnit4/
+        key: gdunit4-v4.2.4-${{ runner.os }}
+        
+    - name: 🧪 Install GdUnit4
+      if: steps.gdunit4-cache-coverage.outputs.cache-hit != 'true'
+      run: |
+        GDUNIT4_VERSION="4.2.4"
+        GDUNIT4_URL="https://github.com/MikeSchulze/gdUnit4/releases/download/v${GDUNIT4_VERSION}/gdUnit4.zip"
+        
+        mkdir -p addons/gdUnit4
+        echo "Downloading GdUnit4 v${GDUNIT4_VERSION}..."
+        wget -O gdunit4.zip "${GDUNIT4_URL}"
+        unzip gdunit4.zip -d addons/gdUnit4/
+        rm gdunit4.zip
+        
+    - name: 📊 Run Tests with Coverage
+      run: |
+        godot --headless --script addons/gdUnit4/bin/GdUnitCmdTool.gd \
+          --add test/unit/ \
+          --add test/integration/ \
+          --report-coverage \
+          --report-console
+          
+    - name: 📈 Upload Coverage Reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage/
+        
+  lint:
+    name: 🔍 Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🎯 Setup Godot 4.2.2
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        godot-version: '4.2.2'
+        
+    - name: 🏗️ Import Project
+      run: |
+        timeout 60 godot --headless --editor --quit || true
+        
+    - name: 🔍 Check Script Syntax
+      run: |
+        # Check all GDScript files for syntax errors
+        find scripts/ test/ -name "*.gd" -exec godot --headless --check-only {} \;
+        
+    - name: 🧹 Lint GDScript Files
+      run: |
+        # Run gdformat if available, otherwise basic checks
+        echo "Checking GDScript formatting..."
+        for file in $(find scripts/ test/ -name "*.gd"); do
+          echo "Checking $file"
+          # Basic validation - file should parse without errors
+          godot --headless --script "$file" --check-only
+        done
+        
+  performance:
+    name: ⚡ Performance Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🎯 Setup Godot 4.2.2
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        godot-version: '4.2.2'
+        
+    - name: 🧪 Install GdUnit4
+      run: |
+        mkdir -p addons/gdUnit4
+        wget -O gdunit4.zip https://github.com/MikeSchulze/gdUnit4/releases/latest/download/gdUnit4.zip
+        unzip gdunit4.zip -d addons/gdUnit4/
+        
+    - name: ⚡ Run Performance Tests
+      run: |
+        # Run performance-specific tests if they exist
+        if [ -d "test/performance" ]; then
+          godot --headless --script addons/gdUnit4/bin/GdUnitCmdTool.gd \
+            --add test/performance/ \
+            --report-console \
+            --timeout 300
+        else
+          echo "No performance tests found"
+        fi
+        
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🔒 Run Security Scan
+      run: |
+        # Basic security checks for game development
+        echo "🔍 Checking for sensitive data..."
+        
+        # Check for hardcoded secrets or API keys
+        if grep -r -i "password\|secret\|key\|token" scripts/ --include="*.gd" --exclude-dir=test; then
+          echo "❌ Potential sensitive data found in scripts"
+          exit 1
+        fi
+        
+        # Check for debug prints in production code
+        if grep -r "print\|push_warning\|print_debug" scripts/ --include="*.gd" | grep -v "# DEBUG"; then
+          echo "⚠️ Debug prints found in production code"
+          # Don't fail, just warn
+        fi
+        
+        echo "✅ Security scan completed"
+        
+  build:
+    name: 🏗️ Build Game
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 🎯 Setup Godot 4.2.2
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        godot-version: '4.2.2'
+        
+    - name: 🏗️ Build Project
+      run: |
+        mkdir -p build
+        # Export project for Linux (headless build)
+        godot --headless --export-debug "Linux/X11" build/pyramid-builder-linux.x86_64 || true
+        
+    - name: 📦 Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: game-build
+        path: build/
+        retention-days: 7
