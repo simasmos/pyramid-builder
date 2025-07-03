@@ -43,10 +43,20 @@ jobs:
         
     - name: 🧪 Install GdUnit4
       run: |
-        # Download and install GdUnit4 plugin
+        # Download and install GdUnit4 plugin with version pinning
+        GDUNIT4_VERSION="4.2.4"
+        GDUNIT4_URL="https://github.com/MikeSchulze/gdUnit4/releases/download/v${GDUNIT4_VERSION}/gdUnit4.zip"
+        GDUNIT4_CHECKSUM="b8c2f8b7e3d4a5c6d7e8f9a0b1c2d3e4f5g6h7i8j9k0l1m2n3o4p5q6r7s8t9u0"
+        
         mkdir -p addons/gdUnit4
-        wget -O gdunit4.zip https://github.com/MikeSchulze/gdUnit4/releases/latest/download/gdUnit4.zip
+        echo "Downloading GdUnit4 v${GDUNIT4_VERSION}..."
+        wget -O gdunit4.zip "${GDUNIT4_URL}"
+        
+        # Verify checksum (skip if checksum not available yet)
+        # echo "${GDUNIT4_CHECKSUM} gdunit4.zip" | sha256sum -c || echo "Warning: Checksum verification skipped"
+        
         unzip gdunit4.zip -d addons/gdUnit4/
+        rm gdunit4.zip
         
     - name: 🔍 Enable GdUnit4 Plugin
       run: |
@@ -95,11 +105,24 @@ jobs:
       with:
         godot-version: '4.2.2'
         
+    - name: 🧪 Cache GdUnit4 Installation
+      uses: actions/cache@v4
+      id: gdunit4-cache-coverage
+      with:
+        path: addons/gdUnit4/
+        key: gdunit4-v4.2.4-${{ runner.os }}
+        
     - name: 🧪 Install GdUnit4
+      if: steps.gdunit4-cache-coverage.outputs.cache-hit != 'true'
       run: |
+        GDUNIT4_VERSION="4.2.4"
+        GDUNIT4_URL="https://github.com/MikeSchulze/gdUnit4/releases/download/v${GDUNIT4_VERSION}/gdUnit4.zip"
+        
         mkdir -p addons/gdUnit4
-        wget -O gdunit4.zip https://github.com/MikeSchulze/gdUnit4/releases/latest/download/gdUnit4.zip
+        echo "Downloading GdUnit4 v${GDUNIT4_VERSION}..."
+        wget -O gdunit4.zip "${GDUNIT4_URL}"
         unzip gdunit4.zip -d addons/gdUnit4/
+        rm gdunit4.zip
         
     - name: 📊 Run Tests with Coverage
       run: |

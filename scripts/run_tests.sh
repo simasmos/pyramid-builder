@@ -113,9 +113,18 @@ if [ ! -d "addons/gdUnit4" ]; then
     mkdir -p addons/gdUnit4
     
     if command -v wget &> /dev/null; then
-        wget -O gdunit4.zip https://github.com/MikeSchulze/gdUnit4/releases/latest/download/gdUnit4.zip
-        unzip gdunit4.zip -d addons/gdUnit4/
-        rm gdunit4.zip
+        GDUNIT4_VERSION="4.2.4"
+        GDUNIT4_URL="https://github.com/MikeSchulze/gdUnit4/releases/download/v${GDUNIT4_VERSION}/gdUnit4.zip"
+        
+        echo -e "${BLUE}📦 Downloading GdUnit4 v${GDUNIT4_VERSION}...${NC}"
+        if wget -O gdunit4.zip "${GDUNIT4_URL}"; then
+            unzip gdunit4.zip -d addons/gdUnit4/
+            rm gdunit4.zip
+            echo -e "${GREEN}✅ GdUnit4 installed successfully${NC}"
+        else
+            echo -e "${RED}❌ Failed to download GdUnit4. Please check your internet connection.${NC}"
+            exit 1
+        fi
     else
         echo -e "${RED}❌ wget not found. Please install GdUnit4 manually.${NC}"
         exit 1
@@ -125,7 +134,9 @@ fi
 # Import project if needed
 if [ ! -d ".godot" ]; then
     echo -e "${BLUE}🏗️  Importing Godot project...${NC}"
-    timeout 60 $GODOT_BINARY --headless --editor --quit || true
+    if ! timeout 60 $GODOT_BINARY --headless --editor --quit; then
+        echo -e "${YELLOW}⚠️  Project import may have timed out, but continuing...${NC}"
+    fi
 fi
 
 # Build test command

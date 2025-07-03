@@ -35,15 +35,16 @@ func after_test():
 
 # Test worker management
 func test_add_worker():
-	var new_manager = GameManager.new()
+	# Use existing game_manager instance to avoid conflicts
+	var initial_worker_count = game_manager.workers.size()
 	var worker = Worker.new()
 	
-	new_manager.add_worker(worker)
+	game_manager.add_worker(worker)
 	
-	assert_int(new_manager.workers.size()).is_equal(1)
-	assert_object(new_manager.workers[0]).is_equal(worker)
+	assert_int(game_manager.workers.size()).is_equal(initial_worker_count + 1)
+	assert_object(game_manager.workers[-1]).is_equal(worker)  # Check last added worker
 	
-	new_manager.queue_free()
+	# Cleanup will be handled by after_test()
 	worker.queue_free()
 
 func test_get_current_worker():
@@ -57,9 +58,12 @@ func test_get_current_worker():
 	assert_object(current_worker).is_equal(mock_worker_2)
 
 func test_get_current_worker_empty_list():
+	# Test with a fresh manager that has no workers
 	var empty_manager = GameManager.new()
 	var current_worker = empty_manager.get_current_worker()
 	assert_object(current_worker).is_null()
+	
+	# Proper cleanup
 	empty_manager.queue_free()
 
 func test_get_current_worker_invalid_index():
