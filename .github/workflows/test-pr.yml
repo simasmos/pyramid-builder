@@ -1,0 +1,38 @@
+name: Test Pull Request
+
+on:
+  pull_request:
+    branches: [ master, main ]
+  push:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.2.0
+        
+    - name: Import project
+      run: |
+        timeout 60 godot --headless --import --quit || echo "Import completed or timed out"
+        
+    - name: Run GUT tests
+      run: |
+        GODOT_SILENCE_ROOT_WARNING=1 godot --headless --path . -s addons/gut/gut_cmdln.gd -gdir=test -ginclude_subdirs -gexit
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          test_reports/
+          *.xml
+          *.log
