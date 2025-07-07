@@ -4,7 +4,8 @@ signal worker_changed
 signal turn_changed
 signal game_won
 
-var workers: Array[Worker] = []
+const WorkerClass = preload("res://scripts/Worker.gd")
+var workers: Array[WorkerClass] = []
 var current_worker_index: int = 0
 var turn_number: int = 1
 var game_board: Node2D
@@ -23,17 +24,17 @@ func _initialize_game():
 func register_game_board(board: Node2D):
 	game_board = board
 
-func add_worker(worker: Worker):
+func add_worker(worker: WorkerClass):
 	workers.append(worker)
 	worker.worker_selected.connect(_on_worker_selected)
 	worker.action_performed.connect(_on_worker_action_performed)
 
-func get_current_worker() -> Worker:
+func get_current_worker() -> WorkerClass:
 	if workers.size() > 0 and current_worker_index < workers.size():
 		return workers[current_worker_index]
 	return null
 
-func _on_worker_selected(worker: Worker):
+func _on_worker_selected(worker: WorkerClass):
 	for i in range(workers.size()):
 		if workers[i] == worker:
 			current_worker_index = i
@@ -49,7 +50,7 @@ func _clear_worker_selection():
 	for worker in workers:
 		worker.set_selected(false)
 
-func _on_worker_action_performed(worker: Worker, action: String):
+func _on_worker_action_performed(worker: WorkerClass, action: String):
 	print("Worker performed action: ", action)
 	worker_changed.emit()
 	
@@ -102,7 +103,7 @@ func can_worker_act() -> bool:
 func is_position_valid(pos: Vector2i) -> bool:
 	return pos.x >= 0 and pos.x < GRID_SIZE and pos.y >= 0 and pos.y < GRID_SIZE
 
-func get_worker_at_position(pos: Vector2i) -> Worker:
+func get_worker_at_position(pos: Vector2i) -> WorkerClass:
 	for worker in workers:
 		if worker.grid_position == pos:
 			return worker

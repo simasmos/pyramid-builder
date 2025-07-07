@@ -4,9 +4,12 @@ const GRID_SIZE = 20
 const TILE_SIZE = 32
 const PYRAMID_CENTER = Vector2i(10, 10)
 
+const TileClass = preload("res://scripts/Tile.gd")
+const WorkerClass = preload("res://scripts/Worker.gd")
+
 var tiles: Array[Array] = []
-var workers: Array[Worker] = []
-var selected_worker: Worker = null
+var workers: Array[WorkerClass] = []
+var selected_worker: WorkerClass = null
 
 @onready var tile_container = $TileContainer
 @onready var worker_container = $WorkerContainer
@@ -31,7 +34,7 @@ func _generate_map():
 	# Generate the game map
 	for x in range(GRID_SIZE):
 		for y in range(GRID_SIZE):
-			var tile = Tile.new()
+			var tile = TileClass.new()
 			tile.grid_position = Vector2i(x, y)
 			tile.position = Vector2(x * TILE_SIZE + TILE_SIZE/2, y * TILE_SIZE + TILE_SIZE/2)
 			
@@ -39,21 +42,21 @@ func _generate_map():
 			tile.terrain_type = _get_terrain_type(Vector2i(x, y))
 			
 			# Set stone deposit amounts
-			if tile.terrain_type == Tile.TerrainType.STONE_DEPOSIT:
+			if tile.terrain_type == TileClass.TerrainType.STONE_DEPOSIT:
 				tile.stone_deposit_remaining = 5  # Each deposit has 5 stones
 			
 			tiles[x][y] = tile
 			tile_container.add_child(tile)
 
-func _get_terrain_type(pos: Vector2i) -> Tile.TerrainType:
+func _get_terrain_type(pos: Vector2i) -> TileClass.TerrainType:
 	# Pyramid base (3x3 in center)
 	if pos.x >= PYRAMID_CENTER.x - 1 and pos.x <= PYRAMID_CENTER.x + 1 and \
 	   pos.y >= PYRAMID_CENTER.y - 1 and pos.y <= PYRAMID_CENTER.y + 1:
-		return Tile.TerrainType.PYRAMID_BASE
+		return TileClass.TerrainType.PYRAMID_BASE
 	
 	# Generate Nile river (vertical strip)
 	if pos.x >= 6 and pos.x <= 7:
-		return Tile.TerrainType.WATER
+		return TileClass.TerrainType.WATER
 	
 	# Add some stone deposits (3 random locations, avoiding water and pyramid)
 	var stone_positions = [
@@ -63,10 +66,10 @@ func _get_terrain_type(pos: Vector2i) -> Tile.TerrainType:
 	]
 	
 	if pos in stone_positions:
-		return Tile.TerrainType.STONE_DEPOSIT
+		return TileClass.TerrainType.STONE_DEPOSIT
 	
 	# Everything else is desert
-	return Tile.TerrainType.DESERT
+	return TileClass.TerrainType.DESERT
 
 func _spawn_workers():
 	# Spawn 2 workers at predefined positions
@@ -103,7 +106,7 @@ func handle_click(world_pos: Vector2):
 	if selected_worker and GameManager.can_worker_act():
 		_handle_worker_action(grid_pos)
 
-func _select_worker(worker: Worker):
+func _select_worker(worker: WorkerClass):
 	if selected_worker:
 		selected_worker.set_selected(false)
 		_clear_tile_highlights()
@@ -121,7 +124,7 @@ func deselect_worker():
 		_clear_tile_highlights()
 		GameManager.worker_changed.emit()
 
-func _highlight_movement_range(worker: Worker):
+func _highlight_movement_range(worker: WorkerClass):
 	if not worker or worker.action_points <= 0:
 		return
 	
@@ -175,12 +178,12 @@ func _handle_worker_action(target_pos: Vector2i):
 		_clear_tile_highlights()
 		_highlight_movement_range(selected_worker)
 
-func get_tile_at(pos: Vector2i) -> Tile:
+func get_tile_at(pos: Vector2i) -> TileClass:
 	if is_valid_position(pos):
 		return tiles[pos.x][pos.y]
 	return null
 
-func get_worker_at_position(pos: Vector2i) -> Worker:
+func get_worker_at_position(pos: Vector2i) -> WorkerClass:
 	for worker in workers:
 		if worker.grid_position == pos:
 			return worker
@@ -206,7 +209,7 @@ func place_stone_at_worker_position():
 		if tile.place_stone() and selected_worker.place_stone():
 			print("Worker placed stone at current position ", worker_pos)
 
-func can_place_stone_at_worker_position(worker: Worker) -> bool:
+func can_place_stone_at_worker_position(worker: WorkerClass) -> bool:
 	var tile = get_tile_at(worker.grid_position)
 	return tile != null and tile.can_place_stone()
 
