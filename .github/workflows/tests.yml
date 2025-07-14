@@ -52,9 +52,9 @@ jobs:
         echo "Cleaning .godot directory..."
         rm -rf .godot
         echo "Importing project resources..."
-        GODOT_SILENCE_ROOT_WARNING=1 timeout 60 godot --headless --display-driver headless --path . --editor --quit
+        GODOT_SILENCE_ROOT_WARNING=1 timeout 20 godot --headless --display-driver headless --path . --editor
         echo "Running import again to ensure completion..."
-        GODOT_SILENCE_ROOT_WARNING=1 timeout 60 godot --headless --display-driver headless --path . --editor --quit
+        GODOT_SILENCE_ROOT_WARNING=1 timeout 20 godot --headless --display-driver headless --path . --editor
         
     - name: Run full test suite
       id: test-execution
