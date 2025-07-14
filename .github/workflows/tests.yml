@@ -19,7 +19,7 @@ jobs:
     - name: Setup Godot
       uses: chickensoft-games/setup-godot@v1
       with:
-        version: 4.2.0
+        version: 4.3.0
         include-templates: false
         
     - name: Verify Godot installation
@@ -50,7 +50,8 @@ jobs:
     - name: Import project
       run: |
         echo "Importing project resources..."
-        GODOT_SILENCE_ROOT_WARNING=1 godot --headless --display-driver headless --path . --editor --quit
+        GODOT_SILENCE_ROOT_WARNING=1 godot --headless --display-driver headless --path . --import
+        GODOT_SILENCE_ROOT_WARNING=1 godot --headless --display-driver headless --path . --import
         
     - name: Run full test suite
       id: test-execution
