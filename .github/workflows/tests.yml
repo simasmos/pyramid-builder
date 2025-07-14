@@ -69,7 +69,7 @@ jobs:
         
         # Extract and display test results
         echo "=== Test Results ==="
-        if grep -q "passing" test-output.log; then
+        if grep -q "Passing" test-output.log; then
           PASSING=$(grep "passing" test-output.log | tail -1 | grep -o '[0-9]\+' | head -1 || echo "0")
           FAILING=$(grep "failing" test-output.log | tail -1 | grep -o '[0-9]\+' | head -1 || echo "0") 
           TOTAL=$(grep "Tests" test-output.log | grep -o '[0-9]\+' | head -1 || echo "0")
