@@ -1,0 +1,152 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [ master, main ]
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Run Test Suite
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Godot
+      uses: chickensoft-games/setup-godot@v1
+      with:
+        version: 4.2.0
+        include-templates: false
+        
+    - name: Verify Godot installation
+      run: godot --version
+      
+    - name: Verify test framework
+      run: |
+        if [ ! -f "addons/gut/gut_cmdln.gd" ]; then
+          echo "❌ GUT framework not found"
+          exit 1
+        fi
+        echo "✅ GUT framework found"
+        
+    - name: Verify test directory
+      run: |
+        if [ ! -d "test" ]; then
+          echo "❌ Test directory not found" 
+          exit 1
+        fi
+        TEST_COUNT=$(find test -name "test_*.gd" | wc -l)
+        echo "Found $TEST_COUNT test files"
+        if [ $TEST_COUNT -eq 0 ]; then
+          echo "❌ No test files found"
+          exit 1
+        fi
+        echo "✅ Test files found: $TEST_COUNT"
+        
+    - name: Import project
+      run: |
+        echo "Importing project resources..."
+        GODOT_SILENCE_ROOT_WARNING=1 godot --headless --display-driver headless --path . --editor --quit
+        
+    - name: Run full test suite
+      id: test-execution
+      run: |
+        echo "Running complete test suite..."
+        
+        # Run all tests and capture output
+        if GODOT_SILENCE_ROOT_WARNING=1 godot --headless --path . -s addons/gut/gut_cmdln.gd -gdir=test -ginclude_subdirs -gexit > test-output.log 2>&1; then
+          echo "✅ Tests executed successfully"
+          TEST_STATUS="passed"
+        else
+          echo "⚠️ Tests executed with issues"
+          TEST_STATUS="completed_with_issues"
+        fi
+        
+        # Extract and display test results
+        echo "=== Test Results ==="
+        if grep -q "passing" test-output.log; then
+          PASSING=$(grep "passing" test-output.log | tail -1 | grep -o '[0-9]\+' | head -1 || echo "0")
+          FAILING=$(grep "failing" test-output.log | tail -1 | grep -o '[0-9]\+' | head -1 || echo "0") 
+          TOTAL=$(grep "Tests" test-output.log | grep -o '[0-9]\+' | head -1 || echo "0")
+          
+          echo "- Total: $TOTAL"
+          echo "- Passing: $PASSING"  
+          echo "- Failing: $FAILING"
+          
+          # Set outputs for summary
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+          echo "passing=$PASSING" >> $GITHUB_OUTPUT
+          echo "failing=$FAILING" >> $GITHUB_OUTPUT
+          
+          if [ "$FAILING" -gt 0 ]; then
+            echo "⚠️ Some tests are failing"
+            echo "status=failing" >> $GITHUB_OUTPUT
+          else
+            echo "✅ All tests are passing"
+            echo "status=passing" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "❌ Could not parse test results"
+          echo "status=error" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Display test output
+      if: always()
+      run: |
+        echo "=== Complete Test Output ==="
+        cat test-output.log || echo "No test output found"
+        
+    - name: Generate test summary
+      if: always()
+      run: |
+        echo "## Test Execution Summary" > test-summary.md
+        echo "" >> test-summary.md
+        echo "| Metric | Value |" >> test-summary.md
+        echo "|--------|-------|" >> test-summary.md
+        echo "| Total Tests | ${{ steps.test-execution.outputs.total || 'N/A' }} |" >> test-summary.md
+        echo "| Passing | ${{ steps.test-execution.outputs.passing || 'N/A' }} |" >> test-summary.md
+        echo "| Failing | ${{ steps.test-execution.outputs.failing || 'N/A' }} |" >> test-summary.md
+        echo "| Status | ${{ steps.test-execution.outputs.status || 'Unknown' }} |" >> test-summary.md
+        echo "" >> test-summary.md
+        
+        if [ "${{ steps.test-execution.outputs.status }}" = "failing" ]; then
+          echo "❌ Some tests are failing. Please review the test output above." >> test-summary.md
+        elif [ "${{ steps.test-execution.outputs.status }}" = "passing" ]; then
+          echo "✅ All tests are passing!" >> test-summary.md
+        else
+          echo "⚠️ Test execution completed with issues. Please review the output." >> test-summary.md
+        fi
+        
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          test-output.log
+          test-summary.md
+          test_reports/
+          *.xml
+          *.log
+        
+    - name: Comment test results on PR
+      if: github.event_name == 'pull_request' && always()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          try {
+            const summary = fs.readFileSync('test-summary.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary
+            });
+          } catch (error) {
+            console.log('Could not read test summary:', error);
+          }
