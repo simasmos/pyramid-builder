@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the Test-Driven Development (TDD) approach for the Pyramid Builder game using GUT (Godot Unit Test) framework version 9.4.0 for Godot 4.2.
+This document outlines the Test-Driven Development (TDD) approach for the Pyramid Builder game using GUT (Godot Unit Test) framework version 9.4.0 for Godot 4.3.
 
 ## TDD Philosophy for Game Development
 

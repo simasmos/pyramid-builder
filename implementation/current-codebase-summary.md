@@ -57,7 +57,7 @@ enum TerrainType {
 - **Turn Info**: Bottom right with turn counter, end turn button
 - **Highlights**: Green=move, Yellow=quarry, Blue=place stone
 
-### Important Godot 4.2 Patterns Used
+### Important Godot 4.3 Patterns Used
 - `@onready` and `@export` annotations
 - `create_tween()` for animations
 - `queue_redraw()` for visual updates
