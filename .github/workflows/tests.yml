@@ -51,10 +51,16 @@ jobs:
       run: |
         echo "Cleaning .godot directory..."
         rm -rf .godot
-        echo "Importing project resources..."
-        GODOT_SILENCE_ROOT_WARNING=1 timeout 20 godot --headless --display-driver headless --path . --editor
-        echo "Running import again to ensure completion..."
-        GODOT_SILENCE_ROOT_WARNING=1 timeout 20 godot --headless --display-driver headless --path . --editor
+        echo "Temporarily disabling GUT plugin for import..."
+        # Backup and disable GUT plugin during import
+        cp project.godot project.godot.backup
+        sed -i 's/enabled=PackedStringArray("res:\/\/addons\/gut\/plugin.cfg")/enabled=PackedStringArray()/' project.godot
+        echo "Importing project resources without GUT plugin..."
+        GODOT_SILENCE_ROOT_WARNING=1 timeout 30 godot --headless --display-driver headless --path . --editor --quit || echo "Import completed"
+        echo "Restoring GUT plugin configuration..."
+        mv project.godot.backup project.godot
+        echo "Running import again with GUT plugin enabled..."
+        GODOT_SILENCE_ROOT_WARNING=1 timeout 30 godot --headless --display-driver headless --path . --editor --quit || echo "Import completed"
         
     - name: Run full test suite
       id: test-execution
