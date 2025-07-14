@@ -50,7 +50,9 @@ jobs:
     - name: Import project
       run: |
         echo "Importing project resources..."
-        GODOT_SILENCE_ROOT_WARNING=1 godot --headless --display-driver headless --path . --editor --quit
+        timeout 10 sh -c 'GODOT_SILENCE_ROOT_WARNING=1 godot --headless --display-driver headless --path . --editor --quit'
+        echo "Running import again to ensure completion..."
+        timeout 10 sh -c 'GODOT_SILENCE_ROOT_WARNING=1 godot --headless --display-driver headless --path . --editor --quit'
         
     - name: Run full test suite
       id: test-execution
