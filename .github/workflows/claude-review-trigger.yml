@@ -6,16 +6,7 @@ on:
 
 jobs:
   trigger-claude-review:
-    if: |
-      github.event.issue.pull_request &&
-      (
-        contains(github.event.comment.body, '/claude-review') ||
-        contains(github.event.comment.body, '/review-comprehensive') ||
-        contains(github.event.comment.body, '/review-security') ||
-        contains(github.event.comment.body, '/review-performance') ||
-        contains(github.event.comment.body, '/review-testing') ||
-        contains(github.event.comment.body, '/review-godot')
-      )
+    if: github.event.issue.pull_request != null
     
     runs-on: ubuntu-latest
     permissions:
@@ -25,45 +16,138 @@ jobs:
       actions: write
     
     steps:
-      - name: Parse comment and trigger review
+      - name: Check workflow existence
         uses: actions/github-script@v7
         with:
           script: |
-            const { owner, repo } = context.repo;
-            const comment = context.payload.comment.body;
-            const pr_number = context.payload.issue.number;
-            
-            // Determine review focus from comment
-            let review_focus = 'comprehensive';
-            if (comment.includes('/review-security')) review_focus = 'security';
-            else if (comment.includes('/review-performance')) review_focus = 'performance';
-            else if (comment.includes('/review-testing')) review_focus = 'testing';
-            else if (comment.includes('/review-godot')) review_focus = 'godot-specific';
-            
-            // React to the comment
-            await github.rest.reactions.createForIssueComment({
-              owner,
-              repo,
-              comment_id: context.payload.comment.id,
-              content: 'rocket'
-            });
-            
-            // Trigger the Claude review workflow
-            await github.rest.actions.createWorkflowDispatch({
-              owner,
-              repo,
-              workflow_id: 'claude-code-review.yml',
-              ref: 'master',
-              inputs: {
-                pr_number: pr_number.toString(),
-                review_focus: review_focus
+            try {
+              const workflows = await github.rest.actions.listRepoWorkflows({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              const claudeWorkflow = workflows.data.workflows.find(w => 
+                w.name === 'Claude Code Review' || w.path.includes('claude-code-review.yml')
+              );
+              
+              if (claudeWorkflow) {
+                console.log('Found Claude Code Review workflow:', claudeWorkflow.path);
+                console.log('Workflow ID:', claudeWorkflow.id);
+                console.log('Workflow state:', claudeWorkflow.state);
+              } else {
+                console.log('Claude Code Review workflow not found');
+                console.log('Available workflows:', workflows.data.workflows.map(w => w.name));
               }
-            });
-            
-            // Add a response comment
-            await github.rest.issues.createComment({
-              owner,
-              repo,
-              issue_number: pr_number,
-              body: `🤖 Claude code review initiated with focus: **${review_focus}**\n\nThe review will be posted as a comment when complete. You can monitor progress in the [Actions tab](https://github.com/${owner}/${repo}/actions/workflows/claude-code-review.yml).`
-            });
+            } catch (error) {
+              console.error('Error checking workflows:', error);
+            }
+
+      - name: Debug event information
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('Event name:', context.eventName);
+            console.log('Issue number:', context.payload.issue?.number);
+            console.log('Is PR:', !!context.payload.issue?.pull_request);
+            console.log('Comment body:', context.payload.comment?.body);
+            console.log('Comment author:', context.payload.comment?.user?.login);
+
+      - name: Parse comment and trigger review
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              const { owner, repo } = context.repo;
+              const comment = context.payload.comment.body;
+              const pr_number = context.payload.issue.number;
+              
+              console.log(`Processing comment: "${comment}" for PR #${pr_number}`);
+              
+              // Check if comment contains a review trigger
+              const reviewTriggers = [
+                '/claude-review',
+                '/review-comprehensive', 
+                '/review-security',
+                '/review-performance',
+                '/review-testing',
+                '/review-godot'
+              ];
+              
+              const hasReviewCommand = reviewTriggers.some(trigger => comment.includes(trigger));
+              
+              if (!hasReviewCommand) {
+                console.log('Comment does not contain a review command, skipping');
+                return;
+              }
+              
+              // Determine review focus from comment
+              let review_focus = 'comprehensive';
+              if (comment.includes('/review-security')) review_focus = 'security';
+              else if (comment.includes('/review-performance')) review_focus = 'performance';
+              else if (comment.includes('/review-testing')) review_focus = 'testing';
+              else if (comment.includes('/review-godot')) review_focus = 'godot-specific';
+              
+              console.log(`Review focus determined: ${review_focus}`);
+              
+              // React to the comment
+              try {
+                await github.rest.reactions.createForIssueComment({
+                  owner,
+                  repo,
+                  comment_id: context.payload.comment.id,
+                  content: 'rocket'
+                });
+                console.log('Added rocket reaction to comment');
+              } catch (error) {
+                console.error('Error adding reaction:', error);
+              }
+              
+              // Trigger the Claude review workflow
+              try {
+                const workflowResult = await github.rest.actions.createWorkflowDispatch({
+                  owner,
+                  repo,
+                  workflow_id: 'claude-code-review.yml',
+                  ref: 'master',
+                  inputs: {
+                    pr_number: pr_number.toString(),
+                    review_focus: review_focus
+                  }
+                });
+                console.log('Workflow dispatch result:', workflowResult.status);
+              } catch (error) {
+                console.error('Error triggering workflow:', error);
+                throw error;
+              }
+              
+              // Add a response comment
+              try {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr_number,
+                  body: `🤖 Claude code review initiated with focus: **${review_focus}**\n\nThe review will be posted as a comment when complete. You can monitor progress in the [Actions tab](https://github.com/${owner}/${repo}/actions/workflows/claude-code-review.yml).`
+                });
+                console.log('Added response comment');
+              } catch (error) {
+                console.error('Error adding response comment:', error);
+              }
+              
+            } catch (error) {
+              console.error('Error in trigger workflow:', error);
+              
+              // Try to add an error comment
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.issue.number,
+                  body: `❌ Failed to trigger Claude code review: ${error.message}\n\nPlease check the workflow permissions and try again.`
+                });
+              } catch (commentError) {
+                console.error('Error adding error comment:', commentError);
+              }
+              
+              throw error;
+            }
