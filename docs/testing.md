@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document outlines the Test-Driven Development (TDD) approach for the Pyramid Builder game using GUT (Godot Unit Test) framework version 9.4.0 for Godot 4.3.
+This document outlines the Test-Driven Development (TDD) approach for the Pyramid Builder game using GUT (Godot Unit Test) framework version 9.3.1 for Godot 4.3.
 
 ## TDD Philosophy for Game Development
 
@@ -313,6 +313,22 @@ func test_pathfinding_performance():
 # Example CI command
 godot --headless --script addons/gut/gut_cmdln.gd -gtest_runner
 ```
+
+### GitHub Actions Integration
+The project includes a comprehensive GitHub Actions workflow (`.github/workflows/tests.yml`) that:
+
+- **Automated Testing**: Runs on push/PR to master/main branches
+- **Godot 4.3 Support**: Uses chickensoft-games/setup-godot@v1 with version 4.3.0
+- **Comprehensive Reporting**: Parses GUT output format for detailed test metrics
+- **PR Integration**: Automatically comments test results on pull requests
+- **Artifact Storage**: Saves test logs and reports for debugging
+
+#### Workflow Features:
+- Project import with proper headless configuration
+- Full test suite execution with GUT framework
+- Test result parsing (Scripts, Tests, Passing, Failing, Risky/Pending, Asserts, Time)
+- Automated PR commenting with test summaries
+- Error handling and detailed logging
 
 ## Implementation Roadmap
 
