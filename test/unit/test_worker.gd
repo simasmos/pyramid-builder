@@ -187,14 +187,15 @@ func test_action_costs(params=use_parameters([
 	var expected_cost = params[1]
 	
 	worker.action_points = 2
-	worker.carried_stones = 1  # Needed for place action
 	
 	match action:
 		"move":
 			worker.move_to(Vector2i(6, 5))
 		"quarry":
+			worker.carried_stones = 0  # Must have space to quarry
 			worker.quarry_stone()
 		"place":
+			worker.carried_stones = 1  # Must have stones to place
 			worker.place_stone()
 	
 	assert_eq(worker.action_points, 2 - expected_cost)
