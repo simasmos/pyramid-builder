@@ -31,8 +31,8 @@ jobs:
       id-token: write
     
     steps:
-      - name: Get PR information
-        id: pr-info
+      - name: Set PR parameters
+        id: pr-params
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             PR_NUMBER="${{ github.event.inputs.pr_number }}"
@@ -47,23 +47,25 @@ jobs:
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           echo "review_focus=$REVIEW_FOCUS" >> $GITHUB_OUTPUT
-          
-          # Get PR details
-          PR_INFO=$(gh pr view $PR_NUMBER --json headRefName,baseRefName,title,author)
-          echo "pr_info=$PR_INFO" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
       
-      - name: Checkout PR branch
+      - name: Get PR information and checkout branch
+        id: pr-info
         run: |
-          PR_BRANCH=$(echo '${{ steps.pr-info.outputs.pr_info }}' | jq -r '.headRefName')
+          # Get PR details
+          PR_INFO=$(gh pr view ${{ steps.pr-params.outputs.pr_number }} --json headRefName,baseRefName,title,author)
+          echo "pr_info=$PR_INFO" >> $GITHUB_OUTPUT
+          
+          # Checkout PR branch
+          PR_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName')
           git fetch origin $PR_BRANCH
           git checkout $PR_BRANCH
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run Claude Code Review
         id: claude-review
@@ -77,9 +79,9 @@ jobs:
           
           # Dynamic review prompt based on focus
           direct_prompt: |
-            Please review this pull request (PR #${{ steps.pr-info.outputs.pr_number }}) with a focus on: **${{ steps.pr-info.outputs.review_focus }}**
+            Please review this pull request (PR #${{ steps.pr-params.outputs.pr_number }}) with a focus on: **${{ steps.pr-params.outputs.review_focus }}**
             
-            ${{ steps.pr-info.outputs.review_focus == 'comprehensive' && 'Provide comprehensive feedback on:
+            ${{ steps.pr-params.outputs.review_focus == 'comprehensive' && 'Provide comprehensive feedback on:
             - Code quality and best practices
             - Potential bugs or issues
             - Performance considerations
@@ -87,28 +89,28 @@ jobs:
             - Test coverage
             - Godot 4.3 compatibility and patterns' || '' }}
             
-            ${{ steps.pr-info.outputs.review_focus == 'security' && 'Focus specifically on security aspects:
+            ${{ steps.pr-params.outputs.review_focus == 'security' && 'Focus specifically on security aspects:
             - Input validation and sanitization
             - Authentication and authorization
             - Data exposure risks
             - Secure coding practices
             - Potential vulnerabilities' || '' }}
             
-            ${{ steps.pr-info.outputs.review_focus == 'performance' && 'Focus on performance considerations:
+            ${{ steps.pr-params.outputs.review_focus == 'performance' && 'Focus on performance considerations:
             - Algorithm efficiency
             - Memory usage and leaks
             - Godot-specific performance patterns
             - Frame rate impact
             - Resource loading optimization' || '' }}
             
-            ${{ steps.pr-info.outputs.review_focus == 'testing' && 'Focus on testing aspects:
+            ${{ steps.pr-params.outputs.review_focus == 'testing' && 'Focus on testing aspects:
             - Test coverage completeness
             - Test quality and effectiveness
             - Edge cases and boundary conditions
             - GUT framework usage
             - Test maintainability' || '' }}
             
-            ${{ steps.pr-info.outputs.review_focus == 'godot-specific' && 'Focus on Godot-specific considerations:
+            ${{ steps.pr-params.outputs.review_focus == 'godot-specific' && 'Focus on Godot-specific considerations:
             - Godot 4.3 API usage and best practices
             - Scene structure and node organization
             - Signal usage and connections
@@ -123,7 +125,7 @@ jobs:
       - name: Notify review completion
         if: always()
         run: |
-          echo "Claude code review completed for PR #${{ steps.pr-info.outputs.pr_number }}"
-          echo "Review focus: ${{ steps.pr-info.outputs.review_focus }}"
+          echo "Claude code review completed for PR #${{ steps.pr-params.outputs.pr_number }}"
+          echo "Review focus: ${{ steps.pr-params.outputs.review_focus }}"
           echo "Status: ${{ job.status }}"
 
