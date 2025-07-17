@@ -310,8 +310,11 @@ func test_pathfinding_performance():
 
 ### Test Automation
 ```bash
-# Example CI command
-godot --headless --script addons/gut/gut_cmdln.gd -gtest_runner
+# Local development command (matches GitHub Actions)
+GODOT_SILENCE_ROOT_WARNING=1 godot --headless --path . -s addons/gut/gut_cmdln.gd -gdir=test -ginclude_subdirs -gexit
+
+# Alternative for specific test directories
+godot --headless -s addons/gut/gut_cmdln.gd -gdir=test/unit -gexit
 ```
 
 ### GitHub Actions Integration
