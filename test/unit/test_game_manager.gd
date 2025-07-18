@@ -66,13 +66,20 @@ func test_worker_selection_updates_current_index():
 	assert_eq(game_manager.current_worker_index, 1)
 	assert_eq(game_manager.get_current_worker(), mock_worker2)
 
-func test_end_current_worker_turn_sets_action_points_to_zero():
+func test_end_turn_resets_action_points_for_all_workers():
 	game_manager.add_worker(mock_worker1)
+	game_manager.add_worker(mock_worker2)
+	
 	mock_worker1.action_points = 2
+	mock_worker2.action_points = 1
 	
-	game_manager.end_current_worker_turn()
+	var initial_turn = game_manager.turn_number
 	
-	assert_eq(mock_worker1.action_points, 0)
+	game_manager.end_turn()
+	
+	assert_eq(game_manager.turn_number, initial_turn + 1)
+	assert_eq(mock_worker1.action_points, 2)
+	assert_eq(mock_worker2.action_points, 2)
 
 func test_next_worker_cycles_through_workers():
 	game_manager.add_worker(mock_worker1)

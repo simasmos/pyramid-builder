@@ -58,12 +58,8 @@ func _on_worker_action_performed(worker: WorkerClass, action: String):
 	if action == "place":
 		_check_pyramid_completion()
 
-func end_current_worker_turn():
-	var current_worker = get_current_worker()
-	if current_worker:
-		current_worker.action_points = 0
-	
-	_next_worker()
+func end_turn():
+	_start_new_turn()
 
 func _next_worker():
 	# Clear current selection
