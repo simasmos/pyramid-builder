@@ -1,0 +1,90 @@
+name: Claude PR Review
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude-review:
+    if: github.event.issue.pull_request != null
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    
+    steps:
+      - name: Parse review command
+        id: parse
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          
+          # Check for review commands
+          if [[ "$COMMENT" =~ /claude-review|/review-comprehensive ]]; then
+            echo "review_focus=comprehensive" >> $GITHUB_OUTPUT
+            echo "trigger_review=true" >> $GITHUB_OUTPUT
+          elif [[ "$COMMENT" =~ /review-security ]]; then
+            echo "review_focus=security" >> $GITHUB_OUTPUT
+            echo "trigger_review=true" >> $GITHUB_OUTPUT
+          elif [[ "$COMMENT" =~ /review-performance ]]; then
+            echo "review_focus=performance" >> $GITHUB_OUTPUT
+            echo "trigger_review=true" >> $GITHUB_OUTPUT
+          elif [[ "$COMMENT" =~ /review-testing ]]; then
+            echo "review_focus=testing" >> $GITHUB_OUTPUT
+            echo "trigger_review=true" >> $GITHUB_OUTPUT
+          elif [[ "$COMMENT" =~ /review-godot ]]; then
+            echo "review_focus=godot-specific" >> $GITHUB_OUTPUT
+            echo "trigger_review=true" >> $GITHUB_OUTPUT
+          else
+            echo "trigger_review=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "pr_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+
+      - name: React to comment
+        if: steps.parse.outputs.trigger_review == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
+
+      - name: Checkout repository
+        if: steps.parse.outputs.trigger_review == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR branch
+        if: steps.parse.outputs.trigger_review == 'true'
+        run: |
+          # Get PR details and checkout the branch
+          PR_INFO=$(gh pr view ${{ steps.parse.outputs.pr_number }} --json headRefName)
+          PR_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName')
+          git fetch origin $PR_BRANCH
+          git checkout $PR_BRANCH
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Claude Code Review
+        if: steps.parse.outputs.trigger_review == 'true'
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          direct_prompt: |
+            Review this PR #${{ steps.parse.outputs.pr_number }} with focus: **${{ steps.parse.outputs.review_focus }}**
+            
+            ${{ steps.parse.outputs.review_focus == 'comprehensive' && 'Provide comprehensive feedback on code quality, potential bugs, performance, security, test coverage, and Godot 4.3 compatibility.' || '' }}
+            ${{ steps.parse.outputs.review_focus == 'security' && 'Focus on security: input validation, authentication, data exposure risks, and secure coding practices.' || '' }}
+            ${{ steps.parse.outputs.review_focus == 'performance' && 'Focus on performance: algorithm efficiency, memory usage, Godot-specific optimizations, and frame rate impact.' || '' }}
+            ${{ steps.parse.outputs.review_focus == 'testing' && 'Focus on testing: test coverage, quality, edge cases, GUT framework usage, and maintainability.' || '' }}
+            ${{ steps.parse.outputs.review_focus == 'godot-specific' && 'Focus on Godot 4.3: API usage, scene structure, signals, resource management, and GDScript conventions.' || '' }}
+            
+            Be constructive and proportional to the change scope.
+          allowed_tools: "Bash(find . -name '*.gd' | head -10),Bash(grep -r 'extends' scripts/)"
