@@ -67,9 +67,32 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup PR event context
+        id: pr-context
+        run: |
+          # Get PR details and create event context
+          PR_DATA=$(gh pr view ${{ steps.pr-params.outputs.pr_number }} --json number,title,body,headRefName,baseRefName,author,url)
+          
+          # Create a simulated pull request event payload
+          cat > pr_event.json << EOF
+          {
+            "action": "opened",
+            "number": ${{ steps.pr-params.outputs.pr_number }},
+            "pull_request": $PR_DATA
+          }
+          EOF
+          
+          echo "pr_event_path=$(pwd)/pr_event.json" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@beta
+        env:
+          # Override the event context
+          GITHUB_EVENT_NAME: pull_request
+          GITHUB_EVENT_PATH: ${{ steps.pr-context.outputs.pr_event_path }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
