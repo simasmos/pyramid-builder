@@ -1,0 +1,40 @@
+name: PR Review Commands
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  add-commands:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    
+    steps:
+      - name: Post available commands
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            
+            const commandsBody = [
+              "## 🚀 Available Commands",
+              "",
+              "Comment on this PR with any of these commands:",
+              "",
+              "- `/claude-review` - Comprehensive code review",
+              "- `/review-security` - Security-focused review", 
+              "- `/review-performance` - Performance analysis",
+              "- `/review-testing` - Test coverage and quality",
+              "- `/review-godot` - Godot 4.3 best practices",
+              "",
+              "*Reviews will be posted as comments when complete.*"
+            ].join("\n");
+            
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: pull_number,
+              body: commandsBody
+            });
